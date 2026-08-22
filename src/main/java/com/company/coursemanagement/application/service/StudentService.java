@@ -8,5 +8,6 @@ public interface StudentService {
     StudentDTO findById(Long id);
     List<StudentDTO> findAll();
     StudentDTO update(Long id, StudentDTO dto);
+    StudentDTO partialUpdate(Long id, StudentDTO dto);
     void delete(Long id);
 }

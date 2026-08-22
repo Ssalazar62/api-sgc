@@ -1,10 +1,23 @@
 package com.company.coursemanagement.application.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+
 public class CourseDTO {
+
     private Long id;
+
+    @NotBlank(message = "El código del curso es obligatorio.")
     private String code;
+
+    @NotBlank(message = "El nombre del curso es obligatorio.")
     private String name;
+
     private String description;
+
+    @NotNull(message = "La capacidad máxima es obligatoria.")
+    @Positive(message = "La capacidad máxima debe ser mayor a cero.")
     private Integer maxCapacity;
 
     public CourseDTO() {

@@ -5,10 +5,12 @@ import com.company.coursemanagement.application.service.StudentService;
 import com.company.coursemanagement.domain.exception.StudentNotFoundException;
 import com.company.coursemanagement.domain.model.Student;
 import com.company.coursemanagement.domain.repository.StudentRepository;
-import java.time.LocalDate;
+import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 
+@Service
 public class StudentServiceImpl implements StudentService {
 
     private final StudentRepository studentRepository;
@@ -19,6 +21,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     public StudentDTO create(StudentDTO dto) {
+        validateNullOrEmptyFields(dto);
         Student student = new Student(dto.getId(), dto.getFirstName(), dto.getLastName(), dto.getEmail(), dto.getBirthDate());
         Student saved = studentRepository.save(student);
         return toDTO(saved);
@@ -40,22 +43,16 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     public StudentDTO update(Long id, StudentDTO dto) {
-        // 1. VERIFICACIÓN DE EXISTENCIA
         Student existingStudent = studentRepository.findById(id)
                 .orElseThrow(() -> new StudentNotFoundException(id));
 
-        // 2. VERIFICACIÓN DE CAMPOS NULOS O VACÍOS
         validateNullOrEmptyFields(dto);
 
-        // 3. VERIFICACIÓN DE EMAIL ÚNICO
-        // Si cambió el correo, verificamos que no lo tenga otro estudiante
         if (!existingStudent.getEmail().equalsIgnoreCase(dto.getEmail())
                 && studentRepository.existsByEmail(dto.getEmail())) {
             throw new IllegalArgumentException("El email '" + dto.getEmail() + "' ya pertenece a otro estudiante.");
         }
 
-        // 4. VERIFICACIÓN DE NOMBRE Y APELLIDO ÚNICOS
-        // Si cambió el nombre o el apellido, verificamos que no exista otra persona con la misma combinación
         boolean nameChanged = !existingStudent.getFirstName().equalsIgnoreCase(dto.getFirstName())
                 || !existingStudent.getLastName().equalsIgnoreCase(dto.getLastName());
 
@@ -64,23 +61,63 @@ public class StudentServiceImpl implements StudentService {
                     + dto.getFirstName() + " " + dto.getLastName());
         }
 
-        // 5. VERIFICACIÓN DE FECHA DE NACIMIENTO
         if (dto.getBirthDate().isAfter(LocalDate.now())) {
             throw new IllegalArgumentException("La fecha de nacimiento no puede ser una fecha futura.");
         }
 
-        // 6. ACTUALIZACIÓN Y LIMPIEZA DE DATOS (trim para quitar espacios extra)
         existingStudent.setFirstName(dto.getFirstName().trim());
         existingStudent.setLastName(dto.getLastName().trim());
         existingStudent.setEmail(dto.getEmail().trim().toLowerCase());
         existingStudent.setBirthDate(dto.getBirthDate());
 
-        // 7. GUARDAR Y RETORNAR
         Student updated = studentRepository.save(existingStudent);
         return toDTO(updated);
     }
 
-    // Métodos auxiliares para mantener el código limpio:
+    @Override
+    public StudentDTO partialUpdate(Long id, StudentDTO dto) {
+        Student existingStudent = studentRepository.findById(id)
+                .orElseThrow(() -> new StudentNotFoundException(id));
+
+        if (dto == null) {
+            throw new IllegalArgumentException("Los datos del estudiante no pueden ser nulos.");
+        }
+
+        if (dto.getFirstName() != null && !dto.getFirstName().isBlank()) {
+            existingStudent.setFirstName(dto.getFirstName().trim());
+        }
+
+        if (dto.getLastName() != null && !dto.getLastName().isBlank()) {
+            existingStudent.setLastName(dto.getLastName().trim());
+        }
+
+        if (dto.getEmail() != null && !dto.getEmail().isBlank()) {
+            if (!existingStudent.getEmail().equalsIgnoreCase(dto.getEmail())
+                    && studentRepository.existsByEmail(dto.getEmail())) {
+                throw new IllegalArgumentException("El email '" + dto.getEmail() + "' ya pertenece a otro estudiante.");
+            }
+            existingStudent.setEmail(dto.getEmail().trim().toLowerCase());
+        }
+
+        if (dto.getBirthDate() != null) {
+            if (dto.getBirthDate().isAfter(LocalDate.now())) {
+                throw new IllegalArgumentException("La fecha de nacimiento no puede ser una fecha futura.");
+            }
+            existingStudent.setBirthDate(dto.getBirthDate());
+        }
+
+        Student updated = studentRepository.save(existingStudent);
+        return toDTO(updated);
+    }
+
+    @Override
+    public void delete(Long id) {
+        if (!studentRepository.existsById(id)) {
+            throw new StudentNotFoundException(id);
+        }
+        studentRepository.deleteById(id);
+    }
+
     private void validateNullOrEmptyFields(StudentDTO dto) {
         if (dto == null) {
             throw new IllegalArgumentException("Los datos del estudiante no pueden ser nulos.");
@@ -97,13 +134,6 @@ public class StudentServiceImpl implements StudentService {
         if (dto.getBirthDate() == null) {
             throw new IllegalArgumentException("La fecha de nacimiento es obligatoria.");
         }
-    }
-    @Override
-    public void delete(Long id) {
-        if (!studentRepository.existsById(id)) {
-            throw new StudentNotFoundException(id);
-        }
-        studentRepository.deleteById(id);
     }
 
     private StudentDTO toDTO(Student student) {
